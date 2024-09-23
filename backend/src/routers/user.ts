@@ -1,15 +1,32 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client"
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { JWT_SECRET} from "..";
+import {authMiddleware} from '../middleware';
 
-const JWT_SECRET = "VAIBHAV123"
+
+
 
 const router =  Router()
 
 const prismaClient = new PrismaClient();
 
-//signin with wallet
-// signinwith message 
+router.get("presignedUrl", authMiddleware, (req,res)=>{
+    const s3Client = new S3Client()
+
+const command = new PutObjectCommand({
+  Bucket: "decentralized-data-labeling-platform",
+  Key: `/labelsync/${}`
+})
+
+const preSignedUrl = await getSignedUrl(s3Client, command, {
+  expiresIn: 3600
+})
+
+})
+
 router.post("/signin", async(req,res)=>{
     //Todo: add sign verificartion logic here
     const hardcodedWalletAddress = "3hwCCfEKk3Buj36NKzzgDEiraeM175h8REKnSfjQKbBe"
