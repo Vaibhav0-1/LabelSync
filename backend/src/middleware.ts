@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from ".";
 
 
-export function authmiddleware(req: Request, res: Response, next: NextFunction){
+export function authMiddleware(req: Request, res: Response, next: NextFunction){
     const authHeader = req.headers["authorization"] ?? "";
 
     try{

@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client"
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { JWT_SECRET} from "..";
-import {authMiddleware} from '../middleware';
+import { authMiddleware } from '../middleware';
 
 
 
@@ -13,19 +13,27 @@ const router =  Router()
 
 const prismaClient = new PrismaClient();
 
-router.get("presignedUrl", authMiddleware, (req,res)=>{
-    const s3Client = new S3Client()
+router.get("presignedUrl", authMiddleware, async(req,res)=>{
 
-const command = new PutObjectCommand({
-  Bucket: "decentralized-data-labeling-platform",
-  Key: `/labelsync/${}`
-})
+        const s3Client = new S3Client();
 
-const preSignedUrl = await getSignedUrl(s3Client, command, {
-  expiresIn: 3600
-})
+    const command = new PutObjectCommand({
+    Bucket: "decentralized-data-labeling-platform",
+    Key: `/labelsync/${userId}/${Math.random()}/image.jpg`,
+    ContentType: "img/jpg"
+    })
 
-})
+    const preSignedUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: 3600
+    })
+
+    console.log(preSignedUrl);
+
+    res.json({
+        preSignedUrl
+    })
+
+    })
 
 router.post("/signin", async(req,res)=>{
     //Todo: add sign verificartion logic here
