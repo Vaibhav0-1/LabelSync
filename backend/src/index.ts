@@ -3,7 +3,7 @@ import userRouter from "./routers/user"
 import workerRouter from "./routers/worker"
 const app = express();
  
-export const JWT_SECRET = "VAIBHAV123"
+export const JWT_SECRET: string = process.env.JWT_SECRET as string;
 
 app.use(express.json());
 
