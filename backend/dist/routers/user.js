@@ -15,11 +15,80 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
-const JWT_SECRET = "VAIBHAV123";
+const client_s3_1 = require("@aws-sdk/client-s3");
+const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
+const __1 = require("..");
+const middleware_1 = require("../middleware");
+const types_1 = require("../types");
+const DEFAULT_TITLE = "Select the most clickable thumbnail";
+const accessKeyId = process.env.ACCESS_KEY_ID;
+const secretAccessKey = process.env.ACCESS_SECRET;
+const s3Client = new client_s3_1.S3Client({
+    credentials: {
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+    },
+    region: "eu-north-1"
+});
 const router = (0, express_1.Router)();
 const prismaClient = new client_1.PrismaClient();
-//signin with wallet
-// signinwith message 
+router.post("/task", middleware_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    //@ts-ignore
+    const userId = req.userId;
+    // validate the inputs from the user;
+    const body = req.body;
+    const parseData = types_1.createTaskInput.safeParse(body);
+    const user = yield prismaClient.user.findFirst({
+        where: {
+            id: userId
+        }
+    });
+    if (!parseData.success) {
+        return res.status(411).json({
+            message: "You've sent the wrong inputs"
+        });
+    }
+    //parse the signature here to ensure the person has paid $50
+    let response = yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        const response = yield tx.task.create({
+            data: {
+                title: (_a = parseData.data.title) !== null && _a !== void 0 ? _a : DEFAULT_TITLE,
+                amount: "1",
+                signature: parseData.data.signature,
+                user_id: userId
+            }
+        });
+        console.log(parseData.data.options.map(x => ({
+            image_url: x.imageUrl,
+            task_id: response.id
+        })));
+        yield tx.option.createMany({
+            data: parseData.data.options.map(x => ({
+                image_url: x.imageUrl,
+                task_id: response.id
+            }))
+        });
+        return response;
+    }));
+    res.json({
+        id: response.id
+    });
+}));
+router.get("/presignedUrl", middleware_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // @ts-ignore
+    const userId = req.userId;
+    const command = new client_s3_1.PutObjectCommand({
+        Bucket: "decentralized-data-labeling-platform",
+        Key: `labelsync/${userId}/${Math.random()}/image.jpg`
+    });
+    const preSignedUrl = yield (0, s3_request_presigner_1.getSignedUrl)(s3Client, command, {
+        expiresIn: 3600
+    });
+    res.json({
+        preSignedUrl
+    });
+}));
 router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     //Todo: add sign verificartion logic here
     const hardcodedWalletAddress = "3hwCCfEKk3Buj36NKzzgDEiraeM175h8REKnSfjQKbBe";
@@ -31,7 +100,7 @@ router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function*
     if (existingUser) {
         const token = jsonwebtoken_1.default.sign({
             userId: existingUser.id
-        }, JWT_SECRET);
+        }, __1.JWT_SECRET);
         res.json({
             token
         });
@@ -44,7 +113,7 @@ router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function*
         });
         const token = jsonwebtoken_1.default.sign({
             userId: user.id
-        }, JWT_SECRET);
+        }, __1.JWT_SECRET);
         res.json({
             token
         });
