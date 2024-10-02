@@ -46,15 +46,21 @@ router.post("/task", authMiddleware, async (req, res) => {
         })
     }
     //parse the signature here to ensure the person has paid $50
-    prismaClient.$transaction(async (tx: PrismaClient) => {
-        await tx.task.create({
+    prismaClient.$transaction(async tx => {
+        const response = await tx.task.create({
             data: {
                 title: parseData.data.title ?? DEFAULT_TITLE,
-                amount : 1,
+                amount : "1",
                 signature: parseData.data.signature,
                 user_id: userId
-    
             }
+        });
+
+        await tx.option.createMany({
+            data: parseData.data.options.map(x => ({
+                image_url: x.imageUrl,
+                task_id: response.id
+            }))
         })
 
     })
