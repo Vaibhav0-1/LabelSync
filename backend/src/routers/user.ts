@@ -7,6 +7,7 @@ import { JWT_SECRET} from "..";
 import { authMiddleware } from '../middleware';
 import { createTaskInput } from "../types";
 
+
 const DEFAULT_TITLE = "Select the most clickable thumbnail";
    
 const accessKeyId = process.env.ACCESS_KEY_ID;
@@ -24,7 +25,58 @@ const router =  Router()
 
 const prismaClient = new PrismaClient();
 
+router.get("/task", authMiddleware, async (req, res) => {
+    //@ts-ignore
+    const taskId = req.query.taskId
+    //@ts-ignore
+    const userId = req.query.userId
 
+    const taskDetails = await prismaClient.task.findFirst({
+        where: {
+            user_id: Number(userId),
+            id: Number(taskId),
+        }
+    })
+
+    if (!taskDetails) {
+        return res.status(411).json({
+            message: "You dont have acces to this task"
+        })
+    }
+    //can you make this faster?
+    const responses = await prismaClient.submission.findMany({
+        where:{
+            task_id: Number(taskId)
+        },
+        include : {
+            option: true
+        }
+    });
+
+    const result: Record<string, {
+        count: number;
+        task: {
+            imageUrl: string
+        }
+    }> = {};
+    responses.forEach(r => {
+        if(!result[r.option_id]) {
+            result[r.option_id] = {
+                count: 1,
+                task: {
+                    imageUrl: r.option.image_url
+                }
+            }
+        }else{
+            result[r.option_id].count++;
+        }
+    });
+
+    res.json({
+        result
+    })
+
+})
 
 router.post("/task", authMiddleware, async (req, res) => {
     //@ts-ignore
@@ -45,8 +97,9 @@ router.post("/task", authMiddleware, async (req, res) => {
             message: "You've sent the wrong inputs"
         })
     }
+
     //parse the signature here to ensure the person has paid $50
-    let response =await  prismaClient.$transaction(async tx => {
+    let response = await  prismaClient.$transaction(async tx => {
         const response = await tx.task.create({
             data: {
                 title: parseData.data.title ?? DEFAULT_TITLE,
