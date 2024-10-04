@@ -27,56 +27,63 @@ const prismaClient = new PrismaClient();
 
 router.get("/task", authMiddleware, async (req, res) => {
     //@ts-ignore
-    const taskId = req.query.taskId
+    const taskId = req.query.taskId;
     //@ts-ignore
-    const userId = req.query.userId
+    const userId = req.userId;
 
     const taskDetails = await prismaClient.task.findFirst({
         where: {
             user_id: Number(userId),
             id: Number(taskId),
+        },
+        include: {
+            options: true
         }
-    })
+    });
 
     if (!taskDetails) {
         return res.status(411).json({
-            message: "You dont have acces to this task"
-        })
+            message: "You don't have access to this task"
+        });
     }
-    //can you make this faster?
+
+    // Fetch responses
     const responses = await prismaClient.submission.findMany({
-        where:{
+        where: {
             task_id: Number(taskId)
         },
-        include : {
+        include: {
             option: true
         }
     });
 
     const result: Record<string, {
         count: number;
-        task: {
-            imageUrl: string
+        option: {
+            imageUrl: string;
         }
     }> = {};
-    responses.forEach(r => {
-        if(!result[r.option_id]) {
-            result[r.option_id] = {
-                count: 1,
-                task: {
-                    imageUrl: r.option.image_url
-                }
+
+    // Initialize result with task options
+    taskDetails.options.forEach(option => {
+        result[option.id] = {
+            count: 0,
+            option: {
+                imageUrl: option.image_url
             }
-        }else{
-            result[r.option_id].count++;
-        }
+        };
+    });
+
+    // Increment counts based on responses
+    responses.forEach(r => {
+        result[r.option_id].count++;
     });
 
     res.json({
         result
-    })
+    });
+});
 
-})
 
 router.post("/task", authMiddleware, async (req, res) => {
     //@ts-ignore
