@@ -23,16 +23,8 @@ model Worker {
   id              Int               @id  @default(autoincrement())
   address         String            @unique
   submissions     Submission[]
-  balance         Balance[]        @relation("WorkerBalance") // Correct relation
   pending_amount  Int
   locked_amount   Int
-}
-
-model Balance {
-  id         Int            @id  @default(autoincrement())
-  amount     Int            @default(0)
-  worker_id  Int            
-  worker     Worker         @relation("WorkerBalance", fields: [worker_id], references: [id]) // Use single reference
 }
 
 model Task {
