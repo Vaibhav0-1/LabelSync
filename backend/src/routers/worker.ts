@@ -14,16 +14,29 @@ router.get("/nexttask",workerMiddleware, async(req, res) => {
     // @ts-ignore
     const userId = req.userId;
     
-    const Task = await prismaClient.task.findFirst({
+    const task = await prismaClient.task.findFirst({
         where: {
-            user_id: Number(userId),
-            id: Number(taskId),
+            done: false,
+            submissions: {
+                none: {
+                    worker_id: userId,
+                    
+                }
+            }
         },
-        include: {
+        select: {
             options: true
-        }
+        }    
     })
-
+    if (!task) {
+        res.status(411).json({
+            message: "No more tasks left for you to review"
+        })
+    } else {
+        res.status(411).json({
+            task
+    })
+    }
 })
 
 router.post("/signin", async(req,res)=>{

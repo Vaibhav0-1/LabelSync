@@ -17,9 +17,37 @@ const express_1 = require("express");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const __1 = require("..");
+const middleware_1 = require("../middleware");
 exports.WORKER_JWT_SECRET = __1.JWT_SECRET + "worker";
 const prismaClient = new client_1.PrismaClient();
 const router = (0, express_1.Router)();
+router.get("/nexttask", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // @ts-ignore
+    const userId = req.userId;
+    const task = yield prismaClient.task.findFirst({
+        where: {
+            done: false,
+            submissions: {
+                none: {
+                    worker_id: userId,
+                }
+            }
+        },
+        select: {
+            options: true
+        }
+    });
+    if (!task) {
+        res.status(411).json({
+            message: "No more tasks left for you to review"
+        });
+    }
+    else {
+        res.status(411).json({
+            task
+        });
+    }
+}));
 router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     //Todo: add sign verificartion logic here
     const hardcodedWalletAddress = "3hwCCfEKk3Buj36NKzzgDEiraeM175h8REKnSfjQKbBa";
