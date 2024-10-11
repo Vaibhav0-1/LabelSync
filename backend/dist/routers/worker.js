@@ -34,6 +34,7 @@ router.get("/nexttask", middleware_1.workerMiddleware, (req, res) => __awaiter(v
             }
         },
         select: {
+            title: true,
             options: true
         }
     });

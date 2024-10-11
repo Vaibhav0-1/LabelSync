@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client"
 import { JWT_SECRET} from "..";
 import { workerMiddleware } from "../middleware";
+import { getNextTask } from "../db";
 
 export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
 
@@ -10,24 +11,17 @@ const prismaClient = new PrismaClient();
 
 const router =  Router()
 
+router.post("/submission", workerMiddleware, async(req,res) => {
+
+    const task = await getNextTask(Number(userId));
+})
+
 router.get("/nexttask",workerMiddleware, async(req, res) => {
     // @ts-ignore
     const userId = req.userId;
     
-    const task = await prismaClient.task.findFirst({
-        where: {
-            done: false,
-            submissions: {
-                none: {
-                    worker_id: userId,
-                    
-                }
-            }
-        },
-        select: {
-            options: true
-        }    
-    })
+    const task = await getNextTask(Number(userId));
+
     if (!task) {
         res.status(411).json({
             message: "No more tasks left for you to review"
