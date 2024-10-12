@@ -20,11 +20,23 @@ const __1 = require("..");
 const middleware_1 = require("../middleware");
 const db_1 = require("../db");
 const types_1 = require("../types");
-const config_1 = require("../config");
 exports.WORKER_JWT_SECRET = __1.JWT_SECRET + "worker";
 const TOTAL_SUBMISSIONS = 100;
 const prismaClient = new client_1.PrismaClient();
 const router = (0, express_1.Router)();
+router.get("/balance", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // @ts-ignore
+    const userId = req.userId;
+    const worker = yield prismaClient.worker.findFirst({
+        where: {
+            id: Number(userId)
+        }
+    });
+    res.json({
+        pendingAmount: worker === null || worker === void 0 ? void 0 : worker.pending_amount,
+        lockedAmount: worker === null || worker === void 0 ? void 0 : worker.locked_amount
+    });
+}));
 router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // @ts-ignore
     const userId = req.userId;
@@ -38,8 +50,8 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
             });
         }
         const amount = (Number(task.amount) / TOTAL_SUBMISSIONS).toString();
-        const Submisison = yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-            const submission = yield prismaClient.submission.create({
+        const submisison = yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            const submission = yield tx.submission.create({
                 data: {
                     option_id: Number(parsedBody.data.selection),
                     worker_id: userId,
@@ -47,17 +59,18 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
                     amount
                 }
             });
-        }));
-        yield prismaClient.worker.update({
-            where: {
-                id: userId,
-            },
-            data: {
-                pending_amount: {
-                    increment: Number(amount) * config_1.TOTAL_DECIMALS
+            yield tx.worker.update({
+                where: {
+                    id: userId,
+                },
+                data: {
+                    pending_amount: {
+                        increment: Number(amount)
+                    }
                 }
-            }
-        });
+            });
+            return submission;
+        }));
         const nextTask = yield (0, db_1.getNextTask)(Number(userId));
         res.json({
             nextTask,
@@ -65,6 +78,9 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
         });
     }
     else {
+        res.status(411).json({
+            message: "Incorrect inputs"
+        });
     }
 }));
 router.get("/nexttask", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {

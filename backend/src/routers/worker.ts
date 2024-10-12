@@ -15,6 +15,22 @@ const prismaClient = new PrismaClient();
 
 const router =  Router()
 
+router.get("/balance", workerMiddleware, async(req,res) =>{
+        // @ts-ignore
+        const userId = req.userId;
+
+        const worker = await prismaClient.worker.findFirst({
+            where: {
+                id : Number(userId)
+            }
+        })
+
+        res.json({
+            pendingAmount: worker?.pending_amount,
+            lockedAmount: worker?.locked_amount
+        })   
+})
+
 router.post("/submission", workerMiddleware, async(req,res) => {
     // @ts-ignore
     const userId = req.userId;
@@ -31,8 +47,8 @@ router.post("/submission", workerMiddleware, async(req,res) => {
 
         const amount = (Number(task.amount) / TOTAL_SUBMISSIONS).toString()
 
-        const Submisison = await prismaClient.$transaction(async tx => {
-            const submission = await prismaClient.submission.create({
+        const submisison = await prismaClient.$transaction(async tx => {
+            const submission = await tx.submission.create({
                 data: {
                     option_id: Number(parsedBody.data.selection),
                     worker_id: userId,
@@ -40,26 +56,31 @@ router.post("/submission", workerMiddleware, async(req,res) => {
                     amount
                 }
             })
-        })
 
-        await prismaClient.worker.update({
+        await tx.worker.update({
             where: {
                 id: userId,
             },
             data: {
                 pending_amount: {
-                    increment: Number(amount) * TOTAL_DECIMALS
+                    increment: Number(amount)
                 }
             }
         })
+
+        return submission;
+    })
 
         const nextTask = await getNextTask(Number(userId));
         res.json({
             nextTask,
             amount
         })
-    }else{
 
+    } else{
+         res.status(411).json({
+            message: "Incorrect inputs"
+         })
     }  
 })
 
