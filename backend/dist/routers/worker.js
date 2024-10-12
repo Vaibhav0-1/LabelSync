@@ -24,6 +24,52 @@ exports.WORKER_JWT_SECRET = __1.JWT_SECRET + "worker";
 const TOTAL_SUBMISSIONS = 100;
 const prismaClient = new client_1.PrismaClient();
 const router = (0, express_1.Router)();
+router.post("/payout", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // @ts-ignore
+    const userId = req.userId;
+    const worker = yield prismaClient.worker.findFirst({
+        where: {
+            id: Number(userId)
+        }
+    });
+    if (!worker) {
+        return res.status(403).json({
+            message: "User not found"
+        });
+    }
+    const address = worker.address;
+    // logic here to create a txn
+    const txnId = "0x123123";
+    //we should lock here
+    yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        yield tx.worker.update({
+            where: {
+                id: Number(userId)
+            },
+            data: {
+                pending_amount: {
+                    decrement: worker.pending_amount
+                },
+                locked_amount: {
+                    increment: worker.pending_amount
+                }
+            }
+        });
+        yield tx.payouts.create({
+            data: {
+                user_id: Number(userId),
+                amount: worker.pending_amount,
+                status: "Processing",
+                signature: txnId
+            }
+        });
+    }));
+    //send the txn to the solana blockchain
+    res.json({
+        message: "Processing Payout",
+        amount: worker.pending_amount
+    });
+}));
 router.get("/balance", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // @ts-ignore
     const userId = req.userId;
@@ -56,7 +102,7 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
                     option_id: Number(parsedBody.data.selection),
                     worker_id: userId,
                     task_id: Number(parsedBody.data.taskId),
-                    amount
+                    amount: Number(amount)
                 }
             });
             yield tx.worker.update({

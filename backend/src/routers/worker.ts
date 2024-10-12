@@ -15,6 +15,59 @@ const prismaClient = new PrismaClient();
 
 const router =  Router()
 
+router.post("/payout", workerMiddleware, async (req,res) =>{
+    // @ts-ignore
+    const userId: string = req.userId;
+    const worker = await prismaClient.worker.findFirst({
+        where: { 
+            id: Number(userId)
+        }
+    })
+
+
+    if(!worker){
+        return res.status(403).json({
+            message: "User not found"
+        })
+    }
+    const address  = worker.address;
+
+    // logic here to create a txn
+    const txnId = "0x123123";
+
+    //we should lock here
+    await prismaClient.$transaction(async tx => {
+        await tx.worker.update({
+            where: {
+                id: Number(userId)
+            },
+            data: {
+                pending_amount: {
+                    decrement: worker.pending_amount
+                },
+                locked_amount:{
+                    increment: worker.pending_amount
+                }
+            }
+        })
+
+        await tx.payouts.create({
+            data: {
+                user_id: Number(userId),
+                amount: worker.pending_amount,
+                status: "Processing",
+                signature: txnId
+            }
+        })
+    })
+    //send the txn to the solana blockchain
+
+    res.json({
+        message: "Processing Payout",
+        amount: worker.pending_amount
+    })
+})
+
 router.get("/balance", workerMiddleware, async(req,res) =>{
         // @ts-ignore
         const userId = req.userId;
@@ -53,7 +106,7 @@ router.post("/submission", workerMiddleware, async(req,res) => {
                     option_id: Number(parsedBody.data.selection),
                     worker_id: userId,
                     task_id: Number(parsedBody.data.taskId),
-                    amount
+                    amount: Number(amount)
                 }
             })
 
