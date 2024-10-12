@@ -8,12 +8,13 @@ export const getNextTask = async (userId: number) =>{
             done: false,
             submissions: {
                 none: {
-                    worker_id: userId,
-                    
+                    worker_id: userId, 
                 }
             }
         },
         select: {
+            id: true,
+            amount: true,
             title: true,
             options: true
         }    

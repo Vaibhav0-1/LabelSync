@@ -20,6 +20,7 @@ const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
 const __1 = require("..");
 const middleware_1 = require("../middleware");
 const types_1 = require("../types");
+const config_1 = require("../config");
 const DEFAULT_TITLE = "Select the most clickable thumbnail";
 const accessKeyId = process.env.ACCESS_KEY_ID;
 const secretAccessKey = process.env.ACCESS_SECRET;
@@ -100,7 +101,7 @@ router.post("/task", middleware_1.authMiddleware, (req, res) => __awaiter(void 0
         const response = yield tx.task.create({
             data: {
                 title: (_a = parseData.data.title) !== null && _a !== void 0 ? _a : DEFAULT_TITLE,
-                amount: "1",
+                amount: 1 * config_1.TOTAL_DECIMALS,
                 signature: parseData.data.signature,
                 user_id: userId
             }

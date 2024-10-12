@@ -4,16 +4,63 @@ import { PrismaClient } from "@prisma/client"
 import { JWT_SECRET} from "..";
 import { workerMiddleware } from "../middleware";
 import { getNextTask } from "../db";
+import { createSubmissionInput } from "../types";
+import { TOTAL_DECIMALS } from "../config";
 
 export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
+
+const TOTAL_SUBMISSIONS = 100;
 
 const prismaClient = new PrismaClient();
 
 const router =  Router()
 
 router.post("/submission", workerMiddleware, async(req,res) => {
+    // @ts-ignore
+    const userId = req.userId;
+    const body = req.body;
+    const parsedBody  = createSubmissionInput.safeParse(body);
 
-    const task = await getNextTask(Number(userId));
+    if(parsedBody.success){
+        const task = await getNextTask(Number(userId));
+        if(!task || task?.id !== Number(parsedBody.data.taskId)) {
+            return res.status(411).json({
+                message: "Incorrect task id"
+            })
+        }
+
+        const amount = (Number(task.amount) / TOTAL_SUBMISSIONS).toString()
+
+        const Submisison = await prismaClient.$transaction(async tx => {
+            const submission = await prismaClient.submission.create({
+                data: {
+                    option_id: Number(parsedBody.data.selection),
+                    worker_id: userId,
+                    task_id: Number(parsedBody.data.taskId),
+                    amount
+                }
+            })
+        })
+
+        await prismaClient.worker.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                pending_amount: {
+                    increment: Number(amount) * TOTAL_DECIMALS
+                }
+            }
+        })
+
+        const nextTask = await getNextTask(Number(userId));
+        res.json({
+            nextTask,
+            amount
+        })
+    }else{
+
+    }  
 })
 
 router.get("/nexttask",workerMiddleware, async(req, res) => {
