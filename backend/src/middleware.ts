@@ -21,7 +21,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction){
         }
     } catch(e){
         return res.status(403).json({
-            message: "You are not logged in"
+            message: "You are not logged in, Please login first"
         })
     }
 }

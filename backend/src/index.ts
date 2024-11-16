@@ -1,11 +1,16 @@
 import  express from "express";
 import userRouter from "./routers/user"
 import workerRouter from "./routers/worker"
+import cors from "cors";
 const app = express();
  
 export const JWT_SECRET: string = process.env.JWT_SECRET as string;
 
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3001',
+  credentials: true
+}))
 
 
 app.use("/v1/user", userRouter);
